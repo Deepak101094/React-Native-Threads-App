@@ -65,7 +65,9 @@ app.post("/register", async (req, res) => {
 });
 
 const sendVerificationEmail = async (email, verificationToken) => {
-	const transpoter = nodemailer.createTransport({
+	//create a nodemailer transporter
+
+	const transporter = nodemailer.createTransport({
 		service: "gmail",
 		auth: {
 			user: "deepakpandey101094@gmail.com",
@@ -73,45 +75,40 @@ const sendVerificationEmail = async (email, verificationToken) => {
 		},
 	});
 
-	const mailOption = {
-		from: "matchmake.com",
+	//compose the email message
+	const mailOptions = {
+		from: "threads.com",
 		to: email,
-		subject: "Email verification",
-		text: `please click on the following link to verify your email: http://localhost:3000/verify/${verificationToken}`,
+		subject: "Email Verification",
+		text: `please click the following link to verify your email http://localhost:3000/verify/${verificationToken}`,
 	};
-	//send the email
 
 	try {
-		await transpoter.sendMail(mailOption);
+		await transporter.sendMail(mailOptions);
 	} catch (error) {
-		console.log("Error while sending the email");
+		console.log("error sending email", error);
 	}
 };
-
-// verify the user
 
 app.get("/verify/:token", async (req, res) => {
 	try {
 		const token = req.params.token;
 
-		const user = User.findOne({ verificationToken: token });
-
+		const user = await User.findOne({ verificationToken: token });
 		if (!user) {
-			return res.status(404).json({ message: "Invalid vefification token" });
+			return res.status(404).json({ message: "Invalid token" });
 		}
 
-		// mark the user as verified;
 		user.verified = true;
 		user.verificationToken = undefined;
 		await user.save();
+
 		res.status(200).json({ message: "Email verified successfully" });
 	} catch (error) {
-		console.log("Error", error);
+		console.log("error getting token", error);
 		res.status(500).json({ message: "Email verification failed" });
 	}
 });
-
-//end point to register the user
 
 const generateSecretKey = () => {
 	const secretKey = crypto.randomBytes(32).toString("hex");
@@ -123,21 +120,20 @@ const secretKey = generateSecretKey();
 app.post("/login", async (req, res) => {
 	try {
 		const { email, password } = req.body;
-		const user = User.findOne({ email });
 
+		const user = await User.findOne({ email });
 		if (!user) {
-			res.status(404).json({ message: "Invalid Email" });
+			return res.status(404).json({ message: "Invalid email" });
 		}
 
 		if (user.password !== password) {
-			res.status(404).json({ message: "Invalid Password" });
+			return res.status(404).json({ message: "Invalid password" });
 		}
 
 		const token = jwt.sign({ userId: user._id }, secretKey);
 
-		res.status(200).json({ token, message: "Login Successfull" });
+		res.status(200).json({ token });
 	} catch (error) {
-		console.log("Error while login", error);
-		res.status(500).json({ message: "Login Failed" });
+		res.status(500).json({ message: "Login failed" });
 	}
 });
